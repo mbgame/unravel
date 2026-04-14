@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-game: 'Inter', system-ui, sans-serif;
+}
+
+/* Prevent overscroll bounce on iOS */
+html,
+body {
+  overscroll-behavior: none;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+/* Remove default touch callout on mobile */
+* {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Canvas elements should capture touch events */
+canvas {
+  touch-action: none;
+}
