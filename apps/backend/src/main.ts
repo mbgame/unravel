@@ -54,6 +54,11 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
+  /** Health check — registered before the global prefix so Railway can reach it */
+  const express = app.getHttpAdapter().getInstance();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  express.get('/api/v1/health', (_req: any, res: any) => res.json({ status: 'ok' }));
+
   /** API prefix */
   app.setGlobalPrefix('api/v1');
 
