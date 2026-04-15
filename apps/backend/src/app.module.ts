@@ -45,6 +45,8 @@ const THROTTLE_TTL_SECONDS = 60;
         database: configService.get<string>('database.name'),
         autoLoadEntities: true,
         synchronize: false, // Always use migrations — never synchronize in prod
+        migrations: [__dirname + '/database/migrations/*.js'],
+        migrationsRun: false, // Controlled manually in bootstrap via runMigrations()
         logging: configService.get<string>('app.nodeEnv') === 'development',
       }),
     }),
