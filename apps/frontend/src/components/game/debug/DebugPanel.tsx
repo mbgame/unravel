@@ -129,8 +129,6 @@ export const useDebugStore = create<DebugValues>()(() => ({ ...DEFAULTS }));
 // ── Component ────────────────────────────────────────────────────────────
 
 export function DebugPanel() {
-  const isDev = process.env.NODE_ENV === 'development';
-
   const values = useControls({
     Coin: folder({
       coinDuration: { value: DEFAULTS.coinDuration, min: 0.3, max: 4.0, step: 0.05, label: 'Duration (s)' },
@@ -196,8 +194,6 @@ export function DebugPanel() {
 
   // Push every change into the zustand store so non-Leva code can read it
   useDebugStore.setState(values as DebugValues);
-
-  if (!isDev) return null;
 
   return <Leva collapsed titleBar={{ title: 'Debug' }} />;
 }
