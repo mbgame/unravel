@@ -49,9 +49,9 @@ export default function LoginPage() {
   return (
     <main
       style={{
-        width:          '100dvw',
-        height:         '100dvh',
-        overflow:       'hidden auto',
+        width:          '100%',
+        minHeight:      '100dvh',
+        overflowX:      'hidden',
         background:     'linear-gradient(145deg, #FFF9F0 0%, #F5F0FF 45%, #F0F8FF 100%)',
         position:       'relative',
         display:        'flex',

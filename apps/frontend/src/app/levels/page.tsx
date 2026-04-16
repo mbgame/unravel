@@ -82,7 +82,7 @@ export default function LevelsPage() {
   return (
     <main
       style={{
-        width:         '100dvw',
+        width:         '100%',
         minHeight:     '100dvh',
         background:    'linear-gradient(180deg, #080c1a 0%, #0f1b35 20%, #142550 45%, #1a3566 65%, #1e4575 80%, #244880 100%)',
         display:       'flex',

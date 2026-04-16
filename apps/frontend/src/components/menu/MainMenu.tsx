@@ -57,16 +57,16 @@ export const MainMenu = memo(function MainMenu() {
   return (
     <main
       style={{
-        width:          '100dvw',
-        height:         '100dvh',
-        overflow:       'hidden',
+        width:          '100%',
+        minHeight:      '100dvh',
+        overflowX:      'hidden',
         background:     'linear-gradient(145deg, #FFF9F0 0%, #F5F0FF 45%, #F0F8FF 100%)',
         position:       'relative',
         display:        'flex',
         flexDirection:  'column',
         alignItems:     'center',
         justifyContent: 'center',
-        padding:        '2rem 1.5rem',
+        padding:        'clamp(1rem, 4vh, 2rem) 1.5rem',
         touchAction:    'manipulation',
       }}
       aria-label="Main menu"
@@ -110,7 +110,7 @@ export const MainMenu = memo(function MainMenu() {
         initial={{ opacity: 0, y: -28, scale: 0.88 }}
         animate={{ opacity: 1,  y: 0,   scale: 1    }}
         transition={{ duration: 0.55, type: 'spring', stiffness: 190 }}
-        style={{ textAlign: 'center', marginBottom: '2.8rem', position: 'relative', zIndex: 1 }}
+        style={{ textAlign: 'center', marginBottom: 'clamp(1rem, 4vh, 2.8rem)', position: 'relative', zIndex: 1 }}
       >
         <div
           style={{
@@ -332,7 +332,7 @@ export const MainMenu = memo(function MainMenu() {
         style={{
           display:       'flex',
           flexDirection: 'column',
-          gap:           '0.85rem',
+          gap:           'clamp(0.45rem, 1.5vh, 0.85rem)',
           width:         '100%',
           maxWidth:      '22rem',
           position:      'relative',

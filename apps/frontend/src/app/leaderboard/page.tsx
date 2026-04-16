@@ -41,7 +41,7 @@ export default function LeaderboardPage() {
   return (
     <main
       style={{
-        width:         '100dvw',
+        width:         '100%',
         minHeight:     '100dvh',
         background:    'linear-gradient(160deg, #D6EEFF 0%, #A8D8F8 40%, #C5E8FF 70%, #EAF6FF 100%)',
         fontFamily:    'sans-serif',
