@@ -16,7 +16,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { YarnBallGenerator } from '../../components/game/yarn/YarnBallGenerator';
 import { ColorCollectors } from '../../components/game/ui/ColorCollectors';
 import { GameResultOverlay } from '../../components/game/ui/GameResultOverlay';
-import { PauseMenu } from '../../components/game/ui/PauseMenu';
 import { ZoomSlider } from '../../components/game/ui/ZoomSlider';
 import { CoinIcon } from '../../components/ui/CoinIcon';
 import { useYarnGameStore } from '../../stores/yarnGameStore';
@@ -511,6 +510,67 @@ function QuitConfirmDialog({
   );
 }
 
+// ── Pause dialog ──────────────────────────────────────────────────────────────
+
+function PauseDialog({
+  timerMs,
+  onResume,
+  onRestart,
+  onQuit,
+}: {
+  timerMs:   number;
+  onResume:  () => void;
+  onRestart: () => void;
+  onQuit:    () => void;
+}) {
+  const btnBase: React.CSSProperties = {
+    width: '100%', padding: 'clamp(0.75rem,3vw,0.9rem)',
+    borderRadius: '1.5rem', border: 'none',
+    fontFamily: 'sans-serif', fontSize: 'clamp(0.9rem,3.8vw,1rem)',
+    fontWeight: 800, cursor: 'pointer', touchAction: 'manipulation',
+    WebkitTapHighlightColor: 'transparent', transition: 'transform 0.1s ease',
+  };
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0, zIndex: 30,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(0,0,0,0.48)',
+        backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+        padding: '1.5rem',
+      }}
+      role="dialog" aria-modal="true" aria-label="Paused"
+    >
+      <div style={{
+        background: '#fff', borderRadius: '1.5rem',
+        padding: 'clamp(1.4rem,5vw,2rem)',
+        maxWidth: '20rem', width: '100%',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem',
+        boxShadow: '0 16px 56px rgba(0,0,0,0.22)',
+      }}>
+        <div style={{ fontSize: '2rem', lineHeight: 1 }}>⏸</div>
+        <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: 'clamp(1.2rem,5vw,1.5rem)', color: '#1a1a2e', letterSpacing: '-0.02em' }}>
+          Paused
+        </div>
+        <div style={{ fontFamily: 'monospace', fontSize: '1.3rem', fontWeight: 700, color: '#555', letterSpacing: '0.05em' }}>
+          {formatTime(timerMs)}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', width: '100%', marginTop: '0.3rem' }}>
+          <button onClick={onResume} style={{ ...btnBase, background: 'linear-gradient(130deg,#8338EC,#3A86FF)', color: '#fff', boxShadow: '0 6px 20px rgba(131,56,236,0.36)' }}>
+            ▶  Resume
+          </button>
+          <button onClick={onRestart} style={{ ...btnBase, background: 'rgba(0,0,0,0.06)', color: '#333', border: '1.5px solid rgba(0,0,0,0.12)' }}>
+            ↺  Restart Level
+          </button>
+          <button onClick={onQuit} style={{ ...btnBase, background: 'transparent', color: '#E63946', border: '1.5px solid rgba(230,57,70,0.28)' }}>
+            ✕  Quit to Menu
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Unified game top bar ───────────────────────────────────────────────────────
 // Replaces: BackButton + GameHUD + TargetColorDisplay + CoinDisplay + BufferStack
 // Layout:
@@ -861,15 +921,16 @@ function GameInner() {
 
   const [retryKey,      setRetryKey]      = useState(0);
   const [showQuit,      setShowQuit]      = useState(false);
+  const [showPause,     setShowPause]     = useState(false);
   const [showTutorial,  setShowTutorial]  = useState(false);
   const [showHintPopup, setShowHintPopup] = useState(false);
   const prevPhaseRef = useRef<string>('idle');
 
   const phase        = useYarnGameStore((s) => s.phase);
+  const timerMs      = useGameStore((s) => s.timerMs);
   const hintsUsed    = useGameStore((s) => s.hintsUsed);
   const useHintFn    = useGameStore((s) => s.useHint);
   const resetGame    = useGameStore((s) => s.resetGame);
-  const openModal    = useUiStore((s) => s.openModal);
   const setIsPaused  = useUiStore((s) => s.setIsPaused);
 
   const hintsRemaining = MAX_HINTS - hintsUsed;
@@ -894,11 +955,26 @@ function GameInner() {
     setRetryKey((k) => k + 1);
   }, [resetGame]);
 
-  // Called by PauseMenu → Restart: reset stores then re-mount the level
+  const handlePauseResume = useCallback(() => {
+    setShowPause(false);
+    setIsPaused(false);
+  }, [setIsPaused]);
+
   const handlePauseRestart = useCallback(() => {
+    setShowPause(false);
+    setIsPaused(false);
+    resetGame();
     useYarnGameStore.getState().resetYarnGame();
     setRetryKey((k) => k + 1);
-  }, []);
+  }, [resetGame, setIsPaused]);
+
+  const handlePauseQuit = useCallback(() => {
+    setShowPause(false);
+    setIsPaused(false);
+    resetGame();
+    useYarnGameStore.getState().resetYarnGame();
+    router.push('/');
+  }, [resetGame, setIsPaused, router]);
 
   const handleBack = useCallback(() => {
     const p = useYarnGameStore.getState().phase;
@@ -910,9 +986,9 @@ function GameInner() {
   }, [router]);
 
   const handlePause = useCallback(() => {
+    setShowPause(true);
     setIsPaused(true);
-    openModal('pause');
-  }, [setIsPaused, openModal]);
+  }, [setIsPaused]);
 
   const handleHint = useCallback(() => {
     if (hintsRemaining > 0) {
@@ -968,13 +1044,20 @@ function GameInner() {
       {/* Win / lose overlay */}
       <GameResultOverlay onRetry={handleRetry} />
 
-      {/* Pause menu modal — portal renders above everything */}
-      <PauseMenu onRestart={handlePauseRestart} />
-
       {/* Hint popup — appears below top bar, auto-dismisses after 4 s */}
       {showHintPopup && <HintPopup onDismiss={handleHintDismiss} />}
 
-      {/* Quit confirmation */}
+      {/* Pause dialog */}
+      {showPause && (
+        <PauseDialog
+          timerMs={timerMs}
+          onResume={handlePauseResume}
+          onRestart={handlePauseRestart}
+          onQuit={handlePauseQuit}
+        />
+      )}
+
+      {/* Quit confirmation (back button mid-game) */}
       {showQuit && (
         <QuitConfirmDialog onConfirm={handleQuitConfirm} onCancel={handleQuitCancel} />
       )}

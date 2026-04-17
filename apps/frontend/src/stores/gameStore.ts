@@ -95,10 +95,7 @@ export const useGameStore = create<GameState & GameActions>()(
       resetGame: () => set(INITIAL_STATE, false, 'game/resetGame'),
 
       tickTimer: (deltaMs) =>
-        set((state) => {
-          if (state.phase !== 'PLAYING') return state;
-          return { timerMs: state.timerMs + deltaMs };
-        }, false, 'game/tickTimer'),
+        set((state) => ({ timerMs: state.timerMs + deltaMs }), false, 'game/tickTimer'),
 
       incrementMoves: () =>
         set((state) => ({ moves: state.moves + 1 }), false, 'game/incrementMoves'),
