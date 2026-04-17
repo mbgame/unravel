@@ -16,6 +16,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { YarnBallGenerator } from '../../components/game/yarn/YarnBallGenerator';
 import { ColorCollectors } from '../../components/game/ui/ColorCollectors';
 import { GameResultOverlay } from '../../components/game/ui/GameResultOverlay';
+import { PauseMenu } from '../../components/game/ui/PauseMenu';
 import { ZoomSlider } from '../../components/game/ui/ZoomSlider';
 import { CoinIcon } from '../../components/ui/CoinIcon';
 import { useYarnGameStore } from '../../stores/yarnGameStore';
@@ -867,7 +868,7 @@ function GameInner() {
   const phase        = useYarnGameStore((s) => s.phase);
   const hintsUsed    = useGameStore((s) => s.hintsUsed);
   const useHintFn    = useGameStore((s) => s.useHint);
-  const pauseGame    = useGameStore((s) => s.pauseGame);
+  const resetGame    = useGameStore((s) => s.resetGame);
   const openModal    = useUiStore((s) => s.openModal);
   const setIsPaused  = useUiStore((s) => s.setIsPaused);
 
@@ -888,7 +889,16 @@ function GameInner() {
     setShowTutorial(false);
   }, []);
 
-  const handleRetry = useCallback(() => setRetryKey((k) => k + 1), []);
+  const handleRetry = useCallback(() => {
+    resetGame();
+    setRetryKey((k) => k + 1);
+  }, [resetGame]);
+
+  // Called by PauseMenu → Restart: reset stores then re-mount the level
+  const handlePauseRestart = useCallback(() => {
+    useYarnGameStore.getState().resetYarnGame();
+    setRetryKey((k) => k + 1);
+  }, []);
 
   const handleBack = useCallback(() => {
     const p = useYarnGameStore.getState().phase;
@@ -900,10 +910,9 @@ function GameInner() {
   }, [router]);
 
   const handlePause = useCallback(() => {
-    pauseGame();
     setIsPaused(true);
     openModal('pause');
-  }, [pauseGame, setIsPaused, openModal]);
+  }, [setIsPaused, openModal]);
 
   const handleHint = useCallback(() => {
     if (hintsRemaining > 0) {
@@ -915,9 +924,10 @@ function GameInner() {
   const handleHintDismiss = useCallback(() => setShowHintPopup(false), []);
 
   const handleQuitConfirm = useCallback(() => {
+    resetGame();
     useYarnGameStore.getState().resetYarnGame();
     router.push('/');
-  }, [router]);
+  }, [resetGame, router]);
 
   const handleQuitCancel = useCallback(() => setShowQuit(false), []);
 
@@ -957,6 +967,9 @@ function GameInner() {
 
       {/* Win / lose overlay */}
       <GameResultOverlay onRetry={handleRetry} />
+
+      {/* Pause menu modal — portal renders above everything */}
+      <PauseMenu onRestart={handlePauseRestart} />
 
       {/* Hint popup — appears below top bar, auto-dismisses after 4 s */}
       {showHintPopup && <HintPopup onDismiss={handleHintDismiss} />}

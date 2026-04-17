@@ -10,6 +10,7 @@ import React, { useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useGameStore } from '../../../stores/gameStore';
+// resumeGame / startLevel / currentLevel removed — yarn game manages its own phase
 import { useUiStore } from '../../../stores/uiStore';
 import { Modal } from '../../ui/Modal';
 import { Button } from '../../ui/Button';
@@ -17,39 +18,39 @@ import { SettingsPanel } from './SettingsPanel';
 
 type PauseView = 'menu' | 'settings';
 
+interface PauseMenuProps {
+  /** Called when the player chooses Restart from the pause menu. */
+  onRestart?: () => void;
+}
+
 /**
  * Pause menu modal.
  * Reads open state from uiStore; transitions game phase via gameStore.
  */
-export const PauseMenu = React.memo(function PauseMenu() {
+export const PauseMenu = React.memo(function PauseMenu({ onRestart }: PauseMenuProps) {
   const router = useRouter();
   const [view, setView] = useState<PauseView>('menu');
 
   const activeModal = useUiStore((s) => s.activeModal);
-  const closeModal = useUiStore((s) => s.closeModal);
+  const closeModal  = useUiStore((s) => s.closeModal);
   const setIsPaused = useUiStore((s) => s.setIsPaused);
-  const resumeGame = useGameStore((s) => s.resumeGame);
-  const resetGame = useGameStore((s) => s.resetGame);
-  const startLevel = useGameStore((s) => s.startLevel);
-  const currentLevel = useGameStore((s) => s.currentLevel);
+  const resetGame   = useGameStore((s) => s.resetGame);
 
   const isOpen = activeModal === 'pause';
 
   const handleResume = useCallback(() => {
-    resumeGame();
     setIsPaused(false);
     closeModal();
     setView('menu');
-  }, [resumeGame, setIsPaused, closeModal]);
+  }, [setIsPaused, closeModal]);
 
   const handleRestart = useCallback(() => {
-    closeModal();
+    resetGame();
     setIsPaused(false);
-    if (currentLevel) {
-      startLevel(currentLevel);
-    }
+    closeModal();
     setView('menu');
-  }, [closeModal, setIsPaused, startLevel, currentLevel]);
+    onRestart?.();
+  }, [resetGame, setIsPaused, closeModal, onRestart]);
 
   const handleQuit = useCallback(() => {
     resetGame();

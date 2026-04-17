@@ -10,10 +10,12 @@
 
 import { useEffect, useRef } from 'react';
 import { useGameStore } from '../stores/gameStore';
+import { useYarnGameStore } from '../stores/yarnGameStore';
+import { useUiStore } from '../stores/uiStore';
 
 /**
  * Attaches a requestAnimationFrame loop that ticks the game timer
- * while the game phase is `'PLAYING'`.
+ * while the yarn game is playing and not paused.
  *
  * @example
  * ```tsx
@@ -22,8 +24,12 @@ import { useGameStore } from '../stores/gameStore';
  * ```
  */
 export function useGameTimer(): void {
-  const tickTimer = useGameStore((s) => s.tickTimer);
-  const phase = useGameStore((s) => s.phase);
+  const tickTimer  = useGameStore((s) => s.tickTimer);
+  const yarnPhase  = useYarnGameStore((s) => s.phase);
+  const isPaused   = useUiStore((s) => s.isPaused);
+
+  // Tick only while the yarn game is actively playing and not paused
+  const isActive = yarnPhase === 'playing' && !isPaused;
 
   /** Tracks the timestamp of the previous RAF frame. */
   const lastTimestampRef = useRef<number | null>(null);
@@ -31,7 +37,7 @@ export function useGameTimer(): void {
   const rafHandleRef = useRef<number>(0);
 
   useEffect(() => {
-    if (phase !== 'PLAYING') {
+    if (!isActive) {
       // If not playing, cancel any running loop and reset last timestamp.
       cancelAnimationFrame(rafHandleRef.current);
       lastTimestampRef.current = null;
@@ -54,5 +60,5 @@ export function useGameTimer(): void {
       cancelAnimationFrame(rafHandleRef.current);
       lastTimestampRef.current = null;
     };
-  }, [phase, tickTimer]);
+  }, [isActive, tickTimer]);
 }
