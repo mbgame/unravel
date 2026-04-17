@@ -37,7 +37,7 @@ export default function GameLoading() {
       />
       <p
         style={{
-          color: '#A0A0C0',
+          color: '#b5b5d3ff',
           fontSize: '0.875rem',
           fontFamily: 'sans-serif',
           margin: 0,
