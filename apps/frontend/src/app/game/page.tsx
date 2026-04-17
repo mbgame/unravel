@@ -10,7 +10,7 @@
 
 'use client';
 
-import React, { Suspense, useState, useCallback, memo } from 'react';
+import React, { Suspense, useState, useCallback, useEffect, useRef, memo } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { YarnBallGenerator } from '../../components/game/yarn/YarnBallGenerator';
@@ -22,6 +22,7 @@ import { useYarnGameStore } from '../../stores/yarnGameStore';
 import { useGameStore } from '../../stores/gameStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useGameTimer } from '../../hooks/useGameTimer';
+import { YARN_COLORS } from '../../lib/game/levelGenerator';
 
 const GameCanvas = dynamic(
   () =>
@@ -45,6 +46,337 @@ function formatTime(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+/** localStorage key — bump suffix to reset tutorial for all users. */
+const TUTORIAL_KEY = 'unravel-tutorial-v1';
+
+function colorName(hex: string | null): string {
+  if (!hex) return '';
+  return YARN_COLORS.find((c) => c.hex === hex)?.name ?? '';
+}
+
+// ── Tutorial steps ─────────────────────────────────────────────────────────────
+
+const STEPS = [
+  {
+    icon: '🧶',
+    title: 'Sort the Yarn!',
+    body: 'Tap any yarn ball to launch it toward one of the color collectors at the bottom of the screen.',
+    visual: null as 'collector' | 'buffer' | null,
+  },
+  {
+    icon: null,
+    title: 'Color Collectors',
+    body: 'Each collector accepts one color at a time. Fill it with 3 matching balls and it refreshes with a new color!',
+    visual: 'collector' as 'collector' | 'buffer' | null,
+  },
+  {
+    icon: null,
+    title: 'The Buffer Zone',
+    body: 'Wrong color? It lands in the buffer (top right). Fill all 5 buffer slots and you lose!',
+    visual: 'buffer' as 'collector' | 'buffer' | null,
+  },
+  {
+    icon: '🪙',
+    title: 'Grab Coins Too',
+    body: 'Some yarn balls carry a golden coin. Collect them along the way for bonus points!',
+    visual: null as 'collector' | 'buffer' | null,
+  },
+  {
+    icon: '🏆',
+    title: "You're All Set!",
+    body: 'Clear every yarn ball before the buffer overflows. The faster you go, the better your score!',
+    visual: null as 'collector' | 'buffer' | null,
+  },
+];
+
+// ── Tutorial overlay ──────────────────────────────────────────────────────────
+
+function TutorialOverlay({ onDone }: { onDone: () => void }) {
+  const [step, setStep] = useState(0);
+  const current = STEPS[step];
+  const isLast  = step === STEPS.length - 1;
+
+  const ACCENT  = '#8338EC';
+  const PILL_BG = 'rgba(255,255,255,0.94)';
+
+  function CollectorVisual() {
+    const COLORS = ['#E63946', '#3A86FF'];
+    return (
+      <div style={{ display: 'flex', gap: '0.7rem', justifyContent: 'center', marginBottom: '0.2rem' }}>
+        {COLORS.map((c, i) => (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'center', gap: '0.45rem',
+            background: PILL_BG, border: '1px solid rgba(0,0,0,0.09)',
+            borderRadius: '2rem', padding: '0.45rem 0.9rem',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+          }}>
+            <div style={{
+              width: '1.5rem', height: '1.5rem', borderRadius: '50%',
+              background: `radial-gradient(circle at 35% 35%, ${c}ee, ${c})`,
+              boxShadow: `0 0 6px ${c}66`,
+              border: '2px solid rgba(255,255,255,0.7)',
+            }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+              <div style={{ height: '0.5rem', width: '3rem', background: 'rgba(0,0,0,0.08)', borderRadius: '4px' }} />
+              <div style={{ display: 'flex', gap: '0.22rem' }}>
+                {[0,1,2].map((j) => (
+                  <div key={j} style={{
+                    width: '0.55rem', height: '0.55rem', borderRadius: '50%',
+                    background: j < (i === 0 ? 2 : 1) ? c : 'rgba(0,0,0,0.12)',
+                    border: '1.5px solid rgba(255,255,255,0.55)',
+                  }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  function BufferVisual() {
+    const BALL_COLORS = ['#F4A261', '#8338EC', '#06D6A0', null, null];
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '0.5rem',
+        background: 'rgba(255,255,255,0.88)', borderRadius: '1rem',
+        padding: '0.55rem 0.9rem', justifyContent: 'center',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.09)',
+      }}>
+        <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#E63946', letterSpacing: '0.07em', fontFamily: 'sans-serif', textTransform: 'uppercase' }}>
+          Buffer
+        </span>
+        <div style={{ display: 'flex', gap: '0.28rem', alignItems: 'center' }}>
+          {BALL_COLORS.map((c, i) => (
+            <div key={i} style={{
+              width: '1.05rem', height: '1.05rem', borderRadius: '50%',
+              background: c ? `radial-gradient(circle at 35% 35%, ${c}ee, ${c})` : 'rgba(255,255,255,0.3)',
+              border: `1.5px solid ${c ?? 'rgba(0,0,0,0.12)'}`,
+              boxShadow: c ? `0 0 5px ${c}88` : 'none',
+            }} />
+          ))}
+        </div>
+        <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#E63946', fontFamily: 'sans-serif' }}>
+          2 left!
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0, zIndex: 50,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(0,0,0,0.52)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        padding: '1.5rem',
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="How to play tutorial"
+    >
+      <style>{`
+        @keyframes tut-in { from { opacity:0; transform:translateY(18px) scale(0.96); } to { opacity:1; transform:none; } }
+        .tut-card { animation: tut-in 0.28s ease both; }
+      `}</style>
+
+      <div
+        className="tut-card"
+        style={{
+          background:    'rgba(255,255,255,0.97)',
+          borderRadius:  '1.75rem',
+          padding:       'clamp(1.4rem, 5vw, 2rem)',
+          maxWidth:      '22rem',
+          width:         '100%',
+          display:       'flex',
+          flexDirection: 'column',
+          alignItems:    'center',
+          gap:           '0.85rem',
+          boxShadow:     '0 16px 60px rgba(0,0,0,0.22)',
+          position:      'relative',
+        }}
+      >
+        {/* Skip */}
+        <button
+          onClick={onDone}
+          style={{
+            position: 'absolute', top: '1rem', right: '1rem',
+            background: 'rgba(0,0,0,0.07)', border: 'none',
+            borderRadius: '2rem', padding: '0.28rem 0.7rem',
+            fontFamily: 'sans-serif', fontSize: '0.75rem', fontWeight: 700,
+            color: 'rgba(0,0,0,0.38)', cursor: 'pointer',
+            touchAction: 'manipulation',
+          }}
+          aria-label="Skip tutorial"
+        >
+          Skip
+        </button>
+
+        {/* Step counter */}
+        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(0,0,0,0.28)', fontFamily: 'sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          {step + 1} of {STEPS.length}
+        </div>
+
+        {/* Visual or emoji */}
+        {current.visual === 'collector' ? (
+          <CollectorVisual />
+        ) : current.visual === 'buffer' ? (
+          <BufferVisual />
+        ) : (
+          <div style={{ fontSize: 'clamp(3rem, 14vw, 4rem)', lineHeight: 1 }}>
+            {current.icon}
+          </div>
+        )}
+
+        {/* Title */}
+        <div style={{
+          fontFamily: 'sans-serif', fontWeight: 900,
+          fontSize: 'clamp(1.1rem, 5vw, 1.4rem)',
+          color: '#1a1a2e', textAlign: 'center', letterSpacing: '-0.02em',
+        }}>
+          {current.title}
+        </div>
+
+        {/* Body */}
+        <div style={{
+          fontFamily: 'sans-serif', fontSize: 'clamp(0.85rem, 3.5vw, 0.95rem)',
+          color: 'rgba(0,0,0,0.52)', textAlign: 'center', lineHeight: 1.5,
+          maxWidth: '18rem',
+        }}>
+          {current.body}
+        </div>
+
+        {/* Dot indicators */}
+        <div style={{ display: 'flex', gap: '0.38rem', marginTop: '0.1rem' }}>
+          {STEPS.map((_, i) => (
+            <div
+              key={i}
+              onClick={() => setStep(i)}
+              style={{
+                width:        i === step ? '1.4rem' : '0.45rem',
+                height:       '0.45rem',
+                borderRadius: '0.3rem',
+                background:   i === step ? ACCENT : 'rgba(0,0,0,0.15)',
+                cursor:       'pointer',
+                transition:   'all 0.25s ease',
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Next / Done */}
+        <button
+          onClick={isLast ? onDone : () => setStep((s) => s + 1)}
+          style={{
+            width:         '100%',
+            padding:       'clamp(0.75rem, 3vw, 0.9rem)',
+            borderRadius:  '1.5rem',
+            border:        'none',
+            background:    isLast
+              ? 'linear-gradient(130deg, #06D6A0, #3A86FF)'
+              : `linear-gradient(130deg, ${ACCENT}, #3A86FF)`,
+            color:         '#fff',
+            fontFamily:    'sans-serif',
+            fontSize:      'clamp(0.9rem, 3.8vw, 1rem)',
+            fontWeight:    800,
+            letterSpacing: '0.03em',
+            cursor:        'pointer',
+            boxShadow:     '0 6px 24px rgba(131,56,236,0.38)',
+            touchAction:   'manipulation',
+            WebkitTapHighlightColor: 'transparent',
+            transition:    'transform 0.1s ease',
+            marginTop:     '0.2rem',
+          }}
+        >
+          {isLast ? "Let's Play! 🧶" : 'Next →'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Hint popup ────────────────────────────────────────────────────────────────
+
+function HintPopup({ onDismiss }: { onDismiss: () => void }) {
+  const leftCollector  = useYarnGameStore((s) => s.leftCollector);
+  const rightCollector = useYarnGameStore((s) => s.rightCollector);
+  const bufferStack    = useYarnGameStore((s) => s.bufferStack);
+
+  // Auto-dismiss after 4 s
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 4000);
+    return () => clearTimeout(t);
+  }, [onDismiss]);
+
+  function CollectorHint({ color, count, side }: { color: string | null; count: number; side: string }) {
+    if (!color) return null;
+    const need = 3 - count;
+    const name = colorName(color);
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+        <div style={{
+          width: '1.1rem', height: '1.1rem', borderRadius: '50%', flexShrink: 0,
+          background: `radial-gradient(circle at 35% 35%, ${color}ee, ${color})`,
+          boxShadow: `0 0 5px ${color}66`,
+          border: '2px solid rgba(255,255,255,0.7)',
+        }} />
+        <span style={{ fontFamily: 'sans-serif', fontSize: '0.82rem', color: '#333', fontWeight: 600 }}>
+          {side} needs <strong>{need}</strong> more <strong style={{ color }}>{name}</strong>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        position: 'absolute', top: 'clamp(4.5rem, 18vw, 6rem)', left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 25, pointerEvents: 'auto',
+      }}
+      onClick={onDismiss}
+    >
+      <style>{`@keyframes hint-in { from { opacity:0; transform:translateX(-50%) translateY(-10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
+      <div style={{
+        animation: 'hint-in 0.22s ease both',
+        background: 'rgba(255,255,255,0.96)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(131,56,236,0.22)',
+        borderRadius: '1.1rem',
+        padding: '0.85rem 1.1rem',
+        boxShadow: '0 8px 32px rgba(131,56,236,0.18), 0 2px 8px rgba(0,0,0,0.10)',
+        minWidth: 'clamp(14rem, 60vw, 20rem)',
+        display: 'flex', flexDirection: 'column', gap: '0.55rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.1rem' }}>
+          <span style={{ fontSize: '1.1rem' }}>💡</span>
+          <span style={{ fontFamily: 'sans-serif', fontWeight: 800, fontSize: '0.88rem', color: '#333', letterSpacing: '-0.01em' }}>
+            Hint
+          </span>
+          {bufferStack.length > 0 && (
+            <span style={{ marginLeft: 'auto', fontFamily: 'sans-serif', fontSize: '0.72rem', color: bufferStack.length >= 3 ? '#E63946' : 'rgba(0,0,0,0.38)', fontWeight: 700 }}>
+              Buffer: {bufferStack.length}/5
+            </span>
+          )}
+        </div>
+        <CollectorHint color={leftCollector.color}  count={leftCollector.count}  side="Left" />
+        <CollectorHint color={rightCollector.color} count={rightCollector.count} side="Right" />
+        {bufferStack.length >= 3 && (
+          <div style={{ fontFamily: 'sans-serif', fontSize: '0.75rem', color: '#E63946', fontWeight: 600, borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: '0.45rem', marginTop: '0.1rem' }}>
+            Buffer nearly full! Prioritize the colors shown above.
+          </div>
+        )}
+        <div style={{ fontFamily: 'sans-serif', fontSize: '0.68rem', color: 'rgba(0,0,0,0.28)', textAlign: 'center', marginTop: '0.1rem' }}>
+          Tap to dismiss
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Level loading screen ───────────────────────────────────────────────────────
@@ -526,17 +858,35 @@ function GameInner() {
   const levelParam   = searchParams.get('level');
   const levelNumber  = levelParam ? Math.max(1, parseInt(levelParam, 10)) : 1;
 
-  const [retryKey,  setRetryKey]  = useState(0);
-  const [showQuit,  setShowQuit]  = useState(false);
+  const [retryKey,      setRetryKey]      = useState(0);
+  const [showQuit,      setShowQuit]      = useState(false);
+  const [showTutorial,  setShowTutorial]  = useState(false);
+  const [showHintPopup, setShowHintPopup] = useState(false);
+  const prevPhaseRef = useRef<string>('idle');
 
   const phase        = useYarnGameStore((s) => s.phase);
   const hintsUsed    = useGameStore((s) => s.hintsUsed);
-  const useHint      = useGameStore((s) => s.useHint);
+  const useHintFn    = useGameStore((s) => s.useHint);
   const pauseGame    = useGameStore((s) => s.pauseGame);
   const openModal    = useUiStore((s) => s.openModal);
   const setIsPaused  = useUiStore((s) => s.setIsPaused);
 
   const hintsRemaining = MAX_HINTS - hintsUsed;
+
+  // Show tutorial the first time the game transitions from idle → playing
+  useEffect(() => {
+    if (prevPhaseRef.current === 'idle' && phase === 'playing') {
+      if (typeof window !== 'undefined' && !localStorage.getItem(TUTORIAL_KEY)) {
+        setShowTutorial(true);
+      }
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]);
+
+  const handleTutorialDone = useCallback(() => {
+    if (typeof window !== 'undefined') localStorage.setItem(TUTORIAL_KEY, '1');
+    setShowTutorial(false);
+  }, []);
 
   const handleRetry = useCallback(() => setRetryKey((k) => k + 1), []);
 
@@ -556,8 +906,13 @@ function GameInner() {
   }, [pauseGame, setIsPaused, openModal]);
 
   const handleHint = useCallback(() => {
-    if (hintsRemaining > 0) useHint();
-  }, [hintsRemaining, useHint]);
+    if (hintsRemaining > 0) {
+      useHintFn();
+      setShowHintPopup(true);
+    }
+  }, [hintsRemaining, useHintFn]);
+
+  const handleHintDismiss = useCallback(() => setShowHintPopup(false), []);
 
   const handleQuitConfirm = useCallback(() => {
     useYarnGameStore.getState().resetYarnGame();
@@ -603,10 +958,16 @@ function GameInner() {
       {/* Win / lose overlay */}
       <GameResultOverlay onRetry={handleRetry} />
 
+      {/* Hint popup — appears below top bar, auto-dismisses after 4 s */}
+      {showHintPopup && <HintPopup onDismiss={handleHintDismiss} />}
+
       {/* Quit confirmation */}
       {showQuit && (
         <QuitConfirmDialog onConfirm={handleQuitConfirm} onCancel={handleQuitCancel} />
       )}
+
+      {/* First-time tutorial — shown once per browser */}
+      {showTutorial && <TutorialOverlay onDone={handleTutorialDone} />}
 
       {/* Debug GUI — only in local development */}
       {process.env.NODE_ENV === 'development' && <DebugPanel />}
