@@ -41,7 +41,7 @@ export const KnotMesh = memo(
     const stringPaths = useMemo(() => {
       if (!knotGraph || !graph) return new Map<string, THREE.Vector3[]>();
       const map = new Map<string, THREE.Vector3[]>();
-      for (const str of graph.strings) {
+      for (const str of graph.strings as Array<{ id: string }>) {
         map.set(str.id, knotGraph.getStringPath(str.id));
       }
       return map;
@@ -55,7 +55,7 @@ export const KnotMesh = memo(
     return (
       <group ref={ref}>
         {/* Render one StringSegment per string's full path */}
-        {graph.strings.map((str) => {
+        {graph.strings.map((str: { id: string; color: string; nodeSequence: string[] }) => {
           const path = stringPaths.get(str.id);
           if (!path || path.length < 2) return null;
           return (
@@ -69,8 +69,8 @@ export const KnotMesh = memo(
         })}
 
         {/* Render a coin node at each crossing node */}
-        {graph.nodes.map((node) => {
-          const nodeString = graph.strings.find((s) =>
+        {graph.nodes.map((node: { id: string; position: { x: number; y: number; z: number }; isFixed: boolean }) => {
+          const nodeString = graph.strings.find((s: { id: string; nodeSequence: string[] }) =>
             s.nodeSequence.includes(node.id),
           );
           const color = nodeString ? stringColorMap.get(nodeString.id) ?? '#FFD700' : '#FFD700';
