@@ -34,7 +34,7 @@ export const KnotMesh = memo(
     // Build a map from stringId → color for quick lookup
     const stringColorMap = useMemo(() => {
       if (!graph) return new Map<string, string>();
-      return new Map(graph.strings.map((s: { id: string; color: string }) => [s.id, s.color]));
+      return new Map<string, string>(graph.strings.map((s: { id: string; color: string }): [string, string] => [s.id, s.color]));
     }, [graph]);
 
     // Build string paths: stringId → Vector3[]
