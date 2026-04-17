@@ -10,7 +10,6 @@ import React, { useRef, useMemo, forwardRef, memo } from 'react';
 import * as THREE from 'three';
 import { useKnotStore } from '../../../stores/knotStore';
 import { KnotGraph } from '../../../lib/game/knotGraph';
-import type { KnotString } from '@unravel/shared-types';
 import { StringSegment } from './StringSegment';
 import { KnotNodeMesh } from './KnotNodeMesh';
 
@@ -35,7 +34,7 @@ export const KnotMesh = memo(
     // Build a map from stringId → color for quick lookup
     const stringColorMap = useMemo(() => {
       if (!graph) return new Map<string, string>();
-      return new Map(graph.strings.map((s: KnotString) => [s.id, s.color]));
+      return new Map(graph.strings.map((s: { id: string; color: string }) => [s.id, s.color]));
     }, [graph]);
 
     // Build string paths: stringId → Vector3[]
