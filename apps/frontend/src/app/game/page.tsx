@@ -334,13 +334,18 @@ function HintPopup({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div
       style={{
-        position: 'absolute', top: 'clamp(4.5rem, 18vw, 6rem)', left: '50%',
+        position: 'absolute',
+        top: 'calc(max(env(safe-area-inset-top, 0px), 0.6rem) + 4.5rem)',
+        left: '50%',
         transform: 'translateX(-50%)',
-        zIndex: 25, pointerEvents: 'auto',
+        zIndex: 25,
+        pointerEvents: 'auto',
+        width: 'clamp(14rem, 85vw, 20rem)',
+        maxWidth: 'calc(100vw - 2rem)',
       }}
       onClick={onDismiss}
     >
-      <style>{`@keyframes hint-in { from { opacity:0; transform:translateX(-50%) translateY(-10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
+      <style>{`@keyframes hint-in { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }`}</style>
       <div style={{
         animation: 'hint-in 0.22s ease both',
         background: 'rgba(255,255,255,0.96)',
@@ -350,7 +355,7 @@ function HintPopup({ onDismiss }: { onDismiss: () => void }) {
         borderRadius: '1.1rem',
         padding: '0.85rem 1.1rem',
         boxShadow: '0 8px 32px rgba(131,56,236,0.18), 0 2px 8px rgba(0,0,0,0.10)',
-        minWidth: 'clamp(14rem, 60vw, 20rem)',
+        width: '100%',
         display: 'flex', flexDirection: 'column', gap: '0.55rem',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.1rem' }}>
@@ -925,6 +930,8 @@ function GameInner() {
   const [showTutorial,  setShowTutorial]  = useState(false);
   const [showHintPopup, setShowHintPopup] = useState(false);
   const prevPhaseRef = useRef<string>('idle');
+  /** Tracks the starting state of a two-finger pinch gesture for zoom. */
+  const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
 
   const phase        = useYarnGameStore((s) => s.phase);
   const timerMs      = useGameStore((s) => s.timerMs);
@@ -932,6 +939,7 @@ function GameInner() {
   const useHintFn    = useGameStore((s) => s.useHint);
   const resetGame    = useGameStore((s) => s.resetGame);
   const setIsPaused  = useUiStore((s) => s.setIsPaused);
+  const setZoom      = useUiStore((s) => s.setZoom);
 
   const hintsRemaining = MAX_HINTS - hintsUsed;
 
@@ -1007,6 +1015,33 @@ function GameInner() {
 
   const handleQuitCancel = useCallback(() => setShowQuit(false), []);
 
+  // ── Pinch-to-zoom ─────────────────────────────────────────────────────────
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY,
+      );
+      pinchRef.current = { dist, zoom: useUiStore.getState().zoom };
+    } else {
+      pinchRef.current = null;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 2 || pinchRef.current === null) return;
+    const dist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY,
+    );
+    const delta = (dist / pinchRef.current.dist - 1) * 1.8;
+    setZoom(pinchRef.current.zoom + delta);
+  }, [setZoom]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length < 2) pinchRef.current = null;
+  }, []);
+
   return (
     <main
       style={{
@@ -1018,6 +1053,10 @@ function GameInner() {
         touchAction: 'none',
       }}
       aria-label="Game canvas"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       {/* 3-D scene */}
       <GameCanvas>

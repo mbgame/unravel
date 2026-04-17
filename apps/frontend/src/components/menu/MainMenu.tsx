@@ -59,14 +59,13 @@ export const MainMenu = memo(function MainMenu() {
       style={{
         width:          '100%',
         minHeight:      '100dvh',
-        overflowX:      'hidden',
         background:     'linear-gradient(145deg, #FFF9F0 0%, #F5F0FF 45%, #F0F8FF 100%)',
         position:       'relative',
         display:        'flex',
         flexDirection:  'column',
         alignItems:     'center',
         justifyContent: 'center',
-        padding:        'clamp(1rem, 4vh, 2rem) 1.5rem',
+        padding:        'clamp(1rem, 4vh, 2rem) clamp(1.25rem, 5vw, 2rem)',
         touchAction:    'manipulation',
       }}
       aria-label="Main menu"
@@ -86,24 +85,34 @@ export const MainMenu = memo(function MainMenu() {
         .yarn-btn-sec:active  { transform: scale(0.96) !important; }
       `}</style>
 
-      {/* ── Decorative floating balls ───────────────────────────────────── */}
-      {DECO_BALLS.map((b, i) => (
-        <div
-          key={i}
-          aria-hidden="true"
-          style={{
-            position:     'absolute',
-            width:         b.size,
-            height:        b.size,
-            borderRadius: '50%',
-            background:   `radial-gradient(circle at 32% 32%, ${b.color}EE, ${b.color}88)`,
-            boxShadow:    `0 6px 28px ${b.color}44, inset 0 -3px 10px rgba(0,0,0,0.12)`,
-            animation:    `${i % 2 === 0 ? 'yarn-float-a' : 'yarn-float-b'} ${b.dur}s ${b.delay}s ease-in-out infinite`,
-            opacity:       0.82,
-            ...b.style,
-          }}
-        />
-      ))}
+      {/* ── Decorative floating balls (clipped to their own container) ──── */}
+      <div
+        aria-hidden="true"
+        style={{
+          position:      'absolute',
+          inset:         0,
+          overflow:      'hidden',
+          pointerEvents: 'none',
+          zIndex:        0,
+        }}
+      >
+        {DECO_BALLS.map((b, i) => (
+          <div
+            key={i}
+            style={{
+              position:     'absolute',
+              width:         b.size,
+              height:        b.size,
+              borderRadius: '50%',
+              background:   `radial-gradient(circle at 32% 32%, ${b.color}EE, ${b.color}88)`,
+              boxShadow:    `0 6px 28px ${b.color}44, inset 0 -3px 10px rgba(0,0,0,0.12)`,
+              animation:    `${i % 2 === 0 ? 'yarn-float-a' : 'yarn-float-b'} ${b.dur}s ${b.delay}s ease-in-out infinite`,
+              opacity:       0.82,
+              ...b.style,
+            }}
+          />
+        ))}
+      </div>
 
       {/* ── Title ──────────────────────────────────────────────────────── */}
       <motion.div
@@ -171,7 +180,7 @@ export const MainMenu = memo(function MainMenu() {
             borderRadius:  '1.25rem',
             padding:       '0.65rem 1rem',
             marginBottom:  '1rem',
-            maxWidth:      '22rem',
+            maxWidth:      'min(22rem, 100%)',
             width:         '100%',
             boxShadow:     '0 2px 12px rgba(0,0,0,0.06)',
             position:      'relative',
@@ -229,7 +238,7 @@ export const MainMenu = memo(function MainMenu() {
             borderRadius:  '1.25rem',
             padding:       '0.65rem 1rem',
             marginBottom:  '1rem',
-            maxWidth:      '22rem',
+            maxWidth:      'min(22rem, 100%)',
             width:         '100%',
             boxShadow:     '0 2px 12px rgba(0,0,0,0.06)',
             position:      'relative',
@@ -334,7 +343,7 @@ export const MainMenu = memo(function MainMenu() {
           flexDirection: 'column',
           gap:           'clamp(0.45rem, 1.5vh, 0.85rem)',
           width:         '100%',
-          maxWidth:      '22rem',
+          maxWidth:      'min(22rem, 100%)',
           position:      'relative',
           zIndex:        1,
         }}
@@ -396,12 +405,13 @@ export const MainMenu = memo(function MainMenu() {
         </Link>
 
         {/* Bottom row: Leaderboard + Shop side-by-side */}
-        <div style={{ display: 'flex', gap: '0.65rem', width: '100%' }}>
+        <div style={{ display: 'flex', gap: 'clamp(0.4rem, 2vw, 0.65rem)', width: '100%', minWidth: 0 }}>
           <Link
             href="/leaderboard"
             style={{
               flex:          1,
-              padding:       'clamp(0.85rem, 3.5vw, 1rem)',
+              minWidth:      0,
+              padding:       'clamp(0.75rem, 3vw, 1rem)',
               borderRadius:  '2rem',
               border:        '2px solid rgba(0,0,0,0.08)',
               background:    'rgba(255,255,255,0.55)',
@@ -409,17 +419,19 @@ export const MainMenu = memo(function MainMenu() {
               WebkitBackdropFilter: 'blur(10px)',
               color:         '#555',
               fontFamily:    'system-ui, sans-serif',
-              fontSize:      'clamp(0.88rem, 3.5vw, 1rem)',
+              fontSize:      'clamp(0.78rem, 3.2vw, 1rem)',
               fontWeight:    700,
               cursor:        'pointer',
-              letterSpacing: '0.02em',
+              letterSpacing: '0.01em',
               textDecoration:'none',
               display:       'flex',
               alignItems:    'center',
               justifyContent:'center',
-              gap:           '0.4rem',
+              gap:           '0.3rem',
               boxShadow:     '0 2px 8px rgba(0,0,0,0.04)',
               WebkitTapHighlightColor: 'transparent',
+              overflow:      'hidden',
+              whiteSpace:    'nowrap',
             }}
             className="yarn-btn-sec"
           >
@@ -430,7 +442,8 @@ export const MainMenu = memo(function MainMenu() {
             href="/shop"
             style={{
               flex:          1,
-              padding:       'clamp(0.85rem, 3.5vw, 1rem)',
+              minWidth:      0,
+              padding:       'clamp(0.75rem, 3vw, 1rem)',
               borderRadius:  '2rem',
               border:        '2px solid rgba(255,215,0,0.35)',
               background:    'rgba(255,253,240,0.75)',
@@ -438,17 +451,19 @@ export const MainMenu = memo(function MainMenu() {
               WebkitBackdropFilter: 'blur(10px)',
               color:         '#B8860B',
               fontFamily:    'system-ui, sans-serif',
-              fontSize:      'clamp(0.88rem, 3.5vw, 1rem)',
+              fontSize:      'clamp(0.78rem, 3.2vw, 1rem)',
               fontWeight:    700,
               cursor:        'pointer',
-              letterSpacing: '0.02em',
+              letterSpacing: '0.01em',
               textDecoration:'none',
               display:       'flex',
               alignItems:    'center',
               justifyContent:'center',
-              gap:           '0.4rem',
+              gap:           '0.3rem',
               boxShadow:     '0 2px 8px rgba(0,0,0,0.04)',
               WebkitTapHighlightColor: 'transparent',
+              overflow:      'hidden',
+              whiteSpace:    'nowrap',
             }}
             className="yarn-btn-sec"
           >
